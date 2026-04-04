@@ -39,7 +39,7 @@ Each step uses shaped reward with deterministic components:
 - `+0.10` for each predicted span whose boundaries and `pii_type` both match ground truth.
 - `-0.05` for each false-positive span.
 - `-0.02` per step taken.
-- On terminal submission, the reward also adds the mean of boundary precision, boundary recall, and the task grader score.
+- On terminal submission, the reward also adds the mean of boundary precision and boundary recall.
 - Final reward is clipped to `[-1, 1]`.
 
 ## Setup

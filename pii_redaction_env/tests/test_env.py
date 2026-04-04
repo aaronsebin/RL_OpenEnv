@@ -21,6 +21,16 @@ def test_step_submit_returns_done_true() -> None:
     assert result.done is True
 
 
+def test_reset_is_deterministic_for_same_seed() -> None:
+    env = PIIRedactionEnv()
+    first = env.reset(seed=42, task_id="mixed_pii_redaction")
+    second = env.reset(seed=42, task_id="mixed_pii_redaction")
+
+    assert first.document_text == second.document_text
+    assert first.metadata == second.metadata
+    assert env.state.seed == 42
+
+
 def test_all_graders_return_unit_interval_float() -> None:
     env = PIIRedactionEnv()
     env.reset(seed=42, task_id="basic_pii_detection")

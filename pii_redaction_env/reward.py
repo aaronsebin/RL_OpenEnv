@@ -48,6 +48,6 @@ def compute_reward(
         + reward.step_penalty
     )
     if terminal_score is not None:
-        total += (precision + recall + terminal_score) / 3.0
+        total += (precision + recall) / 2.0
     reward.total = max(-1.0, min(1.0, total))
     return reward

@@ -1,0 +1,10 @@
+openenv-core[core]>=0.2.2
+fastapi
+uvicorn
+pydantic>=2
+faker
+openai
+httpx
+
+[dev]
+pytest>=8.0.0
