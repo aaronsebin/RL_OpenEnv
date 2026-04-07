@@ -118,7 +118,7 @@ def main() -> None:
                 reward = float(result.reward)
                 rewards.append(reward)
                 steps = env.state().step_count
-                score = float(result.final_score or 0.0)
+                score = float(result.final_score) if result.final_score is not None else 0.001
                 all_scores.append(score)
                 action_str = f"submit({len(predicted_spans)}_spans)"
                 log_step(steps, action_str, reward, bool(result.done), None)
