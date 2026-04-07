@@ -77,7 +77,12 @@ def _predict_spans(
     if not content:
         raise ValueError("OpenAI chat completion did not contain message content")
     payload = json.loads(content)
-    valid_spans = [s for s in payload["spans"] if s.get("end", 0) > s.get("start", 0)]
+    valid_pii_types = {member.value for member in PIIType}
+    valid_spans = [
+        s for s in payload["spans"]
+        if s.get("end", 0) > s.get("start", 0)
+        and s.get("pii_type") in valid_pii_types
+    ]
     return [RedactionSpan(**span) for span in valid_spans]
 
 
@@ -101,29 +106,24 @@ def main() -> None:
 
     try:
         for task_id in TASK_ORDER:
-            score = 0.0
-            steps = 0
-            rewards: list[float] = []
             log_start(task_id, "pii_redaction_env", model_name)
-            try:
-                observation = env.reset(seed=42, task_id=task_id)
-                predicted_spans = _predict_spans(
-                    client,
-                    model_name,
-                    task_id,
-                    observation.document_text,
-                )
-                action = PIIAction(spans=predicted_spans, submit=True)
-                result = env.step(action)
-                reward = float(result.reward)
-                rewards.append(reward)
-                steps = env.state().step_count
-                score = float(result.final_score) if result.final_score is not None else 0.001
-                all_scores.append(score)
-                action_str = f"submit({len(predicted_spans)}_spans)"
-                log_step(steps, action_str, reward, bool(result.done), None)
-            finally:
-                log_end(score >= 0.1, steps, score, rewards)
+            observation = env.reset(seed=42, task_id=task_id)
+            predicted_spans = _predict_spans(
+                client,
+                model_name,
+                task_id,
+                observation.document_text,
+            )
+            action = PIIAction(spans=predicted_spans, submit=True)
+            result = env.step(action)
+            steps = env.state.step_count
+            score = float(result.final_score) if result.final_score is not None else 0.001
+            rewards = [score]
+            if result.final_score is not None:
+                all_scores.append(float(result.final_score))
+            action_str = f"submit({len(predicted_spans)}_spans)"
+            log_step(steps, action_str, score, bool(result.done), None)
+            log_end(score >= 0.1, steps, score, rewards)
         print(json.dumps({"mean_score": round(statistics.mean(all_scores), 4) if all_scores else 0.0, "tasks_completed": len(all_scores)}, ensure_ascii=True), flush=True)
     finally:
         env.close()
