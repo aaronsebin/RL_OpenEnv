@@ -17,8 +17,70 @@ except ImportError:
 
 
 def log_start(task, env, model): print(f"[START] task={task} env={env} model={model}", flush=True)
-def log_step(step, action, reward, done, error): print(f"[STEP] step={step} action={action} reward={reward:.4f} done={str(done).lower()} error={error if error else 'null'}", flush=True)
-def log_end(success, steps, score, rewards): print(f"[END] success={str(success).lower()} steps={steps} rewards={','.join(f'{r:.4f}' for r in rewards)}", flush=True)
+def log_step(step, action, reward, done, error): print(f"[STEP] step={step} action={action} reward={reward:.2f} done={str(done).lower()} error={error if error else 'null'}", flush=True)
+def log_end(success, steps, score, rewards): print(f"[END] success={str(success).lower()} steps={steps} rewards={','.join(f'{r:.2f}' for r in rewards)}", flush=True)
+
+PII_TYPE_ALIASES = {
+    "name": "PERSON",
+    "person": "PERSON",
+    "full_name": "PERSON",
+    "email": "EMAIL",
+    "email_address": "EMAIL",
+    "phone": "PHONE",
+    "phone_number": "PHONE",
+    "telephone": "PHONE",
+    "ssn": "SSN",
+    "social_security": "SSN",
+    "social_security_number": "SSN",
+    "address": "ADDRESS",
+    "street_address": "ADDRESS",
+    "dob": "DATE_OF_BIRTH",
+    "date_of_birth": "DATE_OF_BIRTH",
+    "birthday": "DATE_OF_BIRTH",
+    "credit_card": "CREDIT_CARD",
+    "credit_card_number": "CREDIT_CARD",
+    "ip": "IP_ADDRESS",
+    "ip_address": "IP_ADDRESS",
+    "passport": "PASSPORT",
+    "passport_number": "PASSPORT",
+    "quasi": "QUASI_IDENTIFIER",
+    "quasi_identifier": "QUASI_IDENTIFIER",
+}
+
+
+def _normalize_pii_type(raw_type: str) -> str | None:
+    normalized = raw_type.strip().upper()
+    valid = {member.value for member in PIIType}
+    if normalized in valid:
+        return normalized
+    alias = PII_TYPE_ALIASES.get(raw_type.strip().lower())
+    return alias if alias else None
+
+
+def _fix_span_offsets(
+    spans: list[RedactionSpan],
+    document_text: str,
+) -> list[RedactionSpan]:
+    fixed = []
+    for span in spans:
+        text = span.text
+        if not text:
+            continue
+        actual_start = document_text.find(text)
+        if actual_start == -1:
+            lower_doc = document_text.lower()
+            lower_text = text.lower()
+            actual_start = lower_doc.find(lower_text)
+            if actual_start == -1:
+                continue
+        actual_end = actual_start + len(text)
+        fixed.append(RedactionSpan(
+            start=actual_start,
+            end=actual_end,
+            pii_type=span.pii_type,
+            text=text,
+        ))
+    return fixed
 
 
 def _predict_spans(
@@ -77,13 +139,22 @@ def _predict_spans(
     if not content:
         raise ValueError("OpenAI chat completion did not contain message content")
     payload = json.loads(content)
-    valid_pii_types = {member.value for member in PIIType}
-    valid_spans = [
-        s for s in payload["spans"]
-        if s.get("end", 0) > s.get("start", 0)
-        and s.get("pii_type") in valid_pii_types
-    ]
-    return [RedactionSpan(**span) for span in valid_spans]
+    result_spans = []
+    for s in payload.get("spans", []):
+        raw_type = s.get("pii_type", "")
+        normalized_type = _normalize_pii_type(raw_type)
+        if not normalized_type:
+            continue
+        text = s.get("text", "")
+        if not text:
+            continue
+        result_spans.append(RedactionSpan(
+            start=s.get("start", 0),
+            end=s.get("end", 0),
+            pii_type=normalized_type,
+            text=text,
+        ))
+    return result_spans
 
 
 def main() -> None:
@@ -114,6 +185,7 @@ def main() -> None:
                 task_id,
                 observation.document_text,
             )
+            predicted_spans = _fix_span_offsets(predicted_spans, observation.document_text)
             action = PIIAction(spans=predicted_spans, submit=True)
             result = env.step(action)
             steps = env.state.step_count
