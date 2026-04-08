@@ -59,11 +59,11 @@ def _sample_span(observation: PIIObservation) -> RedactionSpan:
 
 def _grader_probe_inputs(env: PIIRedactionEnv) -> tuple[list[RedactionSpan], list[RedactionSpan], list[RedactionSpan]]:
     env.reset(seed=42, task_id="basic_pii_detection")
-    easy_gold = list(env.state().ground_truth_spans)
+    easy_gold = list(env.state.ground_truth_spans)
     env.reset(seed=42, task_id="mixed_pii_redaction")
-    medium_gold = list(env.state().ground_truth_spans)
+    medium_gold = list(env.state.ground_truth_spans)
     env.reset(seed=42, task_id="adversarial_quasi_identification")
-    hard_gold = list(env.state().ground_truth_spans)
+    hard_gold = list(env.state.ground_truth_spans)
     return easy_gold, medium_gold, hard_gold
 
 
@@ -144,17 +144,17 @@ def main() -> int:
             detail = "unpacked as (PIIObservation, float, bool, dict)"
         checks.append(_report("env.step() with a redact action returns (PIIObservation, float, bool, dict)", redact_ok, detail))
 
-        submit_result = env.step(PIIAction(spans=env.state().ground_truth_spans, submit=True))
+        submit_result = env.step(PIIAction(spans=env.state.ground_truth_spans, submit=True))
         checks.append(_report("env.step() with submit action returns done=True", submit_result.done is True, f"done={submit_result.done}"))
 
         try:
-            state = env.state()
+            state = env.state
             state_ok = isinstance(state, PIIState)
             detail = state.task_id or ""
         except Exception as exc:
             state_ok = False
             detail = str(exc)
-        checks.append(_report("env.state() returns a valid PIIState", state_ok, detail))
+        checks.append(_report("env.state property returns a valid PIIState", state_ok, detail))
 
         easy_gold, medium_gold, hard_gold = _grader_probe_inputs(env)
         easy_score = grade_easy(easy_gold, easy_gold)
