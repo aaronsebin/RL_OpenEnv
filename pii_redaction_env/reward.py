@@ -39,6 +39,8 @@ def compute_reward(
             total = 2 * precision * recall / (precision + recall)
         else:
             total = EPS
+    
+    safe_terminal = max(EPS, min(1 - EPS, terminal_score)) if terminal_score is not None else EPS
 
     reward = PIIReward(
         span_matches=0.15 * correct_span_count,
@@ -47,7 +49,7 @@ def compute_reward(
         step_penalty=-0.02 * step_count,
         precision_component=precision,
         recall_component=recall,
-        terminal_score=terminal_score if terminal_score is not None else EPS,
+        terminal_score=safe_terminal,
     )
     reward.total = max(EPS, min(1 - EPS, total))
     return reward
