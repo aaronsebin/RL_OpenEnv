@@ -61,7 +61,10 @@ def grade_task(task_id: str, payload: dict):
     if task_id not in GRADERS:
         return JSONResponse(status_code=404, content={"detail": f"Task '{task_id}' not found"})
 
-    from models import RedactionSpan
+    try:
+        from .models import RedactionSpan
+    except ImportError:
+        from models import RedactionSpan
     predicted_raw = payload.get("predicted", [])
     gold_raw = payload.get("gold", [])
 
