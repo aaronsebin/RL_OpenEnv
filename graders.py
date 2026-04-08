@@ -38,12 +38,14 @@ def _safe_f1(tp: int, fp: int, fn: int) -> float:
 
 
 def grade_easy(predicted: list[RedactionSpan], gold: list[RedactionSpan]) -> float:
-    return (
+    score = (
         1.0 - _EPSILON
         if {_span_key(span) for span in predicted}
         == {_span_key(span) for span in gold}
         else _EPSILON
     )
+    score = max(0.01, min(0.99, score))
+    return score
 
 
 def grade_medium(predicted: list[RedactionSpan], gold: list[RedactionSpan]) -> float:
@@ -51,17 +53,20 @@ def grade_medium(predicted: list[RedactionSpan], gold: list[RedactionSpan]) -> f
     gold_by_type = _group_by_type(gold)
     labels = sorted(set(predicted_by_type) | set(gold_by_type), key=lambda item: item.value)
     if not labels:
-        return 1.0 - _EPSILON
+        score = 1.0 - _EPSILON
+    else:
+        scores: list[float] = []
+        for label in labels:
+            pred_set = predicted_by_type.get(label, set())
+            gold_set = gold_by_type.get(label, set())
+            tp = len(pred_set & gold_set)
+            fp = len(pred_set - gold_set)
+            fn = len(gold_set - pred_set)
+            scores.append(_safe_f1(tp, fp, fn))
+        score = sum(scores) / len(scores)
 
-    scores: list[float] = []
-    for label in labels:
-        pred_set = predicted_by_type.get(label, set())
-        gold_set = gold_by_type.get(label, set())
-        tp = len(pred_set & gold_set)
-        fp = len(pred_set - gold_set)
-        fn = len(gold_set - pred_set)
-        scores.append(_safe_f1(tp, fp, fn))
-    return max(_EPSILON, min(1.0 - _EPSILON, sum(scores) / len(scores)))
+    score = max(0.001, min(0.999, score))
+    return score
 
 
 def grade_hard(predicted: list[RedactionSpan], gold: list[RedactionSpan]) -> float:
@@ -69,25 +74,28 @@ def grade_hard(predicted: list[RedactionSpan], gold: list[RedactionSpan]) -> flo
     gold_by_type = _group_by_type(gold)
     labels = sorted(set(predicted_by_type) | set(gold_by_type), key=lambda item: item.value)
     if not labels:
-        return 1.0 - _EPSILON
+        score = 1.0 - _EPSILON
+    else:
+        total_weight = 0.0
+        weighted_score = 0.0
+        quasi_recall = 0.0
 
-    total_weight = 0.0
-    weighted_score = 0.0
-    quasi_recall = 0.0
+        for label in labels:
+            pred_set = predicted_by_type.get(label, set())
+            gold_set = gold_by_type.get(label, set())
+            tp = len(pred_set & gold_set)
+            fp = len(pred_set - gold_set)
+            fn = len(gold_set - pred_set)
+            f1 = _safe_f1(tp, fp, fn)
+            weight = 1.5 if label == PIIType.QUASI_IDENTIFIER else 1.0
+            weighted_score += weight * f1
+            total_weight += weight
+            if label == PIIType.QUASI_IDENTIFIER:
+                quasi_recall = tp / (tp + fn) if tp + fn else 1.0
 
-    for label in labels:
-        pred_set = predicted_by_type.get(label, set())
-        gold_set = gold_by_type.get(label, set())
-        tp = len(pred_set & gold_set)
-        fp = len(pred_set - gold_set)
-        fn = len(gold_set - pred_set)
-        f1 = _safe_f1(tp, fp, fn)
-        weight = 1.5 if label == PIIType.QUASI_IDENTIFIER else 1.0
-        weighted_score += weight * f1
-        total_weight += weight
-        if label == PIIType.QUASI_IDENTIFIER:
-            quasi_recall = tp / (tp + fn) if tp + fn else 1.0
+        base = weighted_score / total_weight if total_weight else 0.0
+        bonus = 0.1 * quasi_recall
+        score = base + bonus
 
-    base = weighted_score / total_weight if total_weight else 0.0
-    bonus = 0.1 * quasi_recall
-    return max(_EPSILON, min(1.0 - _EPSILON, base + bonus))
+    score = max(0.001, min(0.999, score))
+    return score
