@@ -43,7 +43,6 @@ def compute_reward(
     span_match_bonus = 0.25 * (correct_span_count / gold_span_count)
     type_match_bonus = 0.20 * (correct_type_count / gold_typed_count)
     false_positive_penalty = -0.10 * (false_positive_count / penalty_denominator)
-    # Cap the loop penalty so long episodes do not swamp otherwise useful signal
     step_penalty = -0.02 * min(step_count, 10) / 10.0
     precision_bonus = 0.15 * precision
     recall_bonus = 0.15 * recall
@@ -64,13 +63,15 @@ def compute_reward(
 
     safe_terminal = max(MIN_SCORE, min(MAX_SCORE, terminal_score)) if terminal_score is not None else MIN_SCORE
 
+    # Clamp all fields to (MIN_SCORE, MAX_SCORE) — validator rejects 0.0, 1.0,
+    # and negatives in any numeric field of the reward object.
     reward = PIIReward(
-        span_matches=span_match_bonus,
-        type_matches=type_match_bonus,
-        false_positive_penalty=false_positive_penalty,
-        step_penalty=step_penalty,
-        precision_component=precision,
-        recall_component=recall,
+        span_matches=max(MIN_SCORE, min(MAX_SCORE, span_match_bonus)),
+        type_matches=max(MIN_SCORE, min(MAX_SCORE, type_match_bonus)),
+        false_positive_penalty=max(MIN_SCORE, min(MAX_SCORE, abs(false_positive_penalty))),
+        step_penalty=max(MIN_SCORE, min(MAX_SCORE, abs(step_penalty))),
+        precision_component=max(MIN_SCORE, min(MAX_SCORE, precision)),
+        recall_component=max(MIN_SCORE, min(MAX_SCORE, recall)),
         terminal_score=safe_terminal,
     )
     reward.total = max(MIN_SCORE, min(MAX_SCORE, total))

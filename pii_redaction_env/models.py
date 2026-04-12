@@ -51,14 +51,15 @@ class PIIAction(Action):
 class PIIReward(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
-    span_matches: float = Field(default=0.0)
-    type_matches: float = Field(default=0.0)
-    false_positive_penalty: float = Field(default=0.0)
-    step_penalty: float = Field(default=0.0)
-    precision_component: float = Field(default=0.0)
-    recall_component: float = Field(default=0.0)
-    terminal_score: float = Field(default=0.0)
-    total: float = Field(default=0.0, ge=-1.0, le=1.0)
+    # All defaults use 0.01 — 0.0 is rejected by the validator
+    span_matches: float = Field(default=0.01)
+    type_matches: float = Field(default=0.01)
+    false_positive_penalty: float = Field(default=0.01)
+    step_penalty: float = Field(default=0.01)
+    precision_component: float = Field(default=0.01)
+    recall_component: float = Field(default=0.01)
+    terminal_score: float = Field(default=0.01)
+    total: float = Field(default=0.01, ge=-1.0, le=1.0)
 
 
 class PIIObservation(Observation):
