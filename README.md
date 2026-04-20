@@ -50,7 +50,7 @@ python inference.py
 
 ## HuggingFace Space
 
-[Clueless13/pii_redaction_env](https://huggingface.co/spaces/Clueless13/pii_redaction_env)
+[Clueless13/pii_redaction_env](https://huggingface.co/spaces/Clueless13/pii-redaction-env)
 
 ---
 
