@@ -17,8 +17,8 @@ The agent receives a synthetic document containing PII — names, emails, phone 
 | Task | Difficulty | Description |
 |------|-----------|-------------|
 | `basic_pii_detection` | Easy | Detect person, email, and phone spans in a short note |
-| `mixed_pii_redaction` | Medium | Redact 8–12 PII instances across 5+ types in an HR document |
-| `adversarial_quasi_identification` | Hard | Handle obfuscated PII, quasi-identifiers, and multilingual formats |
+| `mixed_pii_redaction` | Medium | Redact mixed direct identifiers across contact, finance, and identity fields |
+| `adversarial_quasi_identification` | Hard | Catch direct identifiers plus quasi-identifiers that raise re-identification risk |
 
 ---
 
@@ -50,7 +50,7 @@ python inference.py
 
 ## HuggingFace Space
 
-[Clueless13/pii_redaction_env](https://huggingface.co/spaces/Clueless13/pii-redaction-env)
+[Clueless13/pii-redaction-env](https://huggingface.co/spaces/Clueless13/pii-redaction-env)
 
 ---
 
